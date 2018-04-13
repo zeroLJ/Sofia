@@ -17,25 +17,29 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+    <com.yanzhenjie.sofia.NavigationView
+        android:id="@+id/navigation_view"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentRight="true"
+        android:background="@color/sofia_navigation" />
+
     <com.yanzhenjie.sofia.StatusView
         android:id="@+id/status_view"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentTop="true"
-        android:background="@color/sofia_navigation" />
-
-    <com.yanzhenjie.sofia.NavigationView
-        android:id="@+id/navigation_view"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
+        android:layout_toLeftOf="@id/navigation_view"
+        android:layout_toStartOf="@id/navigation_view"
         android:background="@color/sofia_navigation" />
 
     <FrameLayout
         android:id="@+id/content"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_above="@+id/navigation_view"
-        android:layout_below="@+id/status_view" />
+        android:layout_below="@+id/status_view"
+        android:layout_toLeftOf="@id/navigation_view"
+        android:layout_toStartOf="@id/navigation_view" />
 
 </merge>

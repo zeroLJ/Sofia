@@ -13,9 +13,6 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 -->
-<ImageView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/header"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:scaleType="centerCrop"
-    android:src="@drawable/header" />
+<resources>
+    <color name="sofia_navigation">#2B2B2B</color>
+</resources>

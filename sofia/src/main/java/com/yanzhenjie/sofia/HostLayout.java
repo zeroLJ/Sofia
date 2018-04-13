@@ -16,6 +16,7 @@
 package com.yanzhenjie.sofia;
 
 import android.app.Activity;
+import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
@@ -23,9 +24,9 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewParent;
 import android.view.Window;
+import android.view.WindowInsets;
 import android.widget.FrameLayout;
 import android.widget.RelativeLayout;
-
 
 /**
  * Created by YanZhenjie on 2017/8/30.
@@ -51,10 +52,29 @@ class HostLayout extends RelativeLayout implements Bar {
         loadView();
         replaceContentView();
 
-        Utils.invasionNavigationBar(mActivity);
+        Utils.invasionStatusBar(mActivity);
         Utils.invasionNavigationBar(mActivity);
         Utils.setStatusBarColor(mActivity, Color.TRANSPARENT);
         Utils.setNavigationBarColor(mActivity, Color.TRANSPARENT);
+    }
+
+    @Override
+    public final WindowInsets onApplyWindowInsets(WindowInsets insets) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            int paddingSize = insets.getSystemWindowInsetBottom();
+            int barSize = mNavigationView.getDefaultBarSize();
+            paddingSize = paddingSize == barSize ? 0 : paddingSize;
+            mContentLayout.setPaddingRelative(0, 0, 0, paddingSize);
+            RelativeLayout.LayoutParams layoutParams = (LayoutParams) mContentLayout.getLayoutParams();
+            if (paddingSize > 0 && !mNavigationView.isLandscape()) {
+                layoutParams.bottomMargin = -barSize;
+            } else {
+                layoutParams.bottomMargin = 0;
+            }
+            return super.onApplyWindowInsets(insets.replaceSystemWindowInsets(0, 0, 0, 0));
+        } else {
+            return insets;
+        }
     }
 
     private void loadView() {
@@ -70,9 +90,10 @@ class HostLayout extends RelativeLayout implements Bar {
         if (contentLayout.getChildCount() > 0) {
             View contentView = contentLayout.getChildAt(0);
             contentLayout.removeView(contentView);
-            mContentLayout.addView(contentView);
+            ViewGroup.LayoutParams contentParams = contentView.getLayoutParams();
+            mContentLayout.addView(contentView, contentParams.width, contentParams.height);
         }
-        contentLayout.addView(this);
+        contentLayout.addView(this, -1, -1);
     }
 
     @Override
@@ -88,16 +109,18 @@ class HostLayout extends RelativeLayout implements Bar {
     }
 
     @Override
-    public Bar statusBarBackground(int statusBarColor) {
-        mStatusView.setBackgroundColor(statusBarColor);
+    public Bar statusBarBackground(int color) {
+        mStatusView.setBackgroundColor(color);
         return this;
     }
 
     @Override
     public Bar statusBarBackground(Drawable drawable) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
             mStatusView.setBackground(drawable);
-        else mStatusView.setBackgroundDrawable(drawable);
+        } else {
+            mStatusView.setBackgroundDrawable(drawable);
+        }
         return this;
     }
 
@@ -109,16 +132,18 @@ class HostLayout extends RelativeLayout implements Bar {
     }
 
     @Override
-    public Bar navigationBarBackground(int navigationBarColor) {
-        mNavigationView.setBackgroundColor(navigationBarColor);
+    public Bar navigationBarBackground(int color) {
+        mNavigationView.setBackgroundColor(color);
         return this;
     }
 
     @Override
     public Bar navigationBarBackground(Drawable drawable) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
             mNavigationView.setBackground(drawable);
-        else mNavigationView.setBackgroundDrawable(drawable);
+        } else {
+            mNavigationView.setBackgroundDrawable(drawable);
+        }
         return this;
     }
 
@@ -132,59 +157,151 @@ class HostLayout extends RelativeLayout implements Bar {
     @Override
     public Bar invasionStatusBar() {
         mInvasionFlag |= FLAG_INVASION_STATUS;
-        reLayoutInvasion();
+        layoutInvasion();
         return this;
     }
 
     @Override
     public Bar invasionNavigationBar() {
         mInvasionFlag |= FLAG_INVASION_NAVIGATION;
-        reLayoutInvasion();
+        layoutInvasion();
         return this;
     }
 
+    /**
+     * @deprecated use {@link #fitsStatusBarView(int)} instead.
+     */
+    @Deprecated
     @Override
     public Bar fitsSystemWindowView(int viewId) {
-        return fitsSystemWindowView(findViewById(viewId));
+        return fitsStatusBarView(findViewById(viewId));
+    }
+
+    /**
+     * @deprecated use {@link #fitsStatusBarView(View)} instead.
+     */
+    @Deprecated
+    @Override
+    public Bar fitsSystemWindowView(View view) {
+        return fitsStatusBarView(view);
     }
 
     @Override
-    public Bar fitsSystemWindowView(View fitView) {
-        ViewParent fitParent = fitView.getParent();
+    public Bar fitsStatusBarView(int viewId) {
+        return fitsStatusBarView(findViewById(viewId));
+    }
+
+    @Override
+    public Bar fitsStatusBarView(View view) {
+        ViewParent fitParent = view.getParent();
         if (fitParent != null && !(fitParent instanceof FitWindowLayout)) {
-            ViewGroup fitGroup = (ViewGroup) fitParent;
-            fitGroup.removeView(fitView);
-
-            ViewGroup.LayoutParams fitLayoutParams = fitView.getLayoutParams();
-            fitLayoutParams.height = ViewGroup.LayoutParams.WRAP_CONTENT;
             FitWindowLayout fitLayout = new FitWindowLayout(mActivity);
-            fitGroup.addView(fitLayout, fitLayoutParams);
+            ViewGroup fitGroup = (ViewGroup) fitParent;
+            fitGroup.removeView(view);
+            fitGroup.addView(fitLayout);
 
-            ViewGroup.LayoutParams fitViewParams = new ViewGroup.LayoutParams(fitLayoutParams.width, fitLayoutParams.height);
-            fitLayout.addView(fitView, fitViewParams);
+            StatusView statusView = new StatusView(mActivity);
+            fitLayout.addView(statusView);
+
+            ViewGroup.LayoutParams fitViewParams = view.getLayoutParams();
+            fitLayout.addView(view, fitViewParams.width, fitViewParams.height);
         }
         return this;
     }
 
-    private void reLayoutInvasion() {
-        LayoutParams layoutParams = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
-        switch (mInvasionFlag) {
-            case FLAG_INVASION_STATUS:
-                layoutParams.addRule(RelativeLayout.ABOVE, R.id.navigation_view);
-                bringChildToFront(mStatusView);
-                break;
-            case FLAG_INVASION_NAVIGATION:
-                layoutParams.addRule(RelativeLayout.BELOW, R.id.status_view);
-                bringChildToFront(mNavigationView);
-                break;
-            case FLAG_INVASION_STATUS_AND_NAVIGATION:
-                bringChildToFront(mStatusView);
-                bringChildToFront(mNavigationView);
-                break;
-            case FLAG_NOT_INVASION:
-                layoutParams.addRule(RelativeLayout.BELOW, R.id.status_view);
-                layoutParams.addRule(RelativeLayout.ABOVE, R.id.navigation_view);
-                break;
+    @Override
+    public Bar fitsNavigationBarView(int viewId) {
+        return fitsNavigationBarView(findViewById(viewId));
+    }
+
+    @Override
+    public Bar fitsNavigationBarView(View view) {
+        ViewParent fitParent = view.getParent();
+        if (fitParent != null && !(fitParent instanceof FitWindowLayout)) {
+            FitWindowLayout fitLayout = new FitWindowLayout(mActivity);
+            ViewGroup fitGroup = (ViewGroup) fitParent;
+            fitGroup.removeView(view);
+            fitGroup.addView(fitLayout);
+
+            ViewGroup.LayoutParams fitViewParams = view.getLayoutParams();
+            fitLayout.addView(view, fitViewParams.width, fitViewParams.height);
+
+            NavigationView navigationView = new NavigationView(mActivity) {
+                @Override
+                protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+                    if (isLandscape()) {
+                        this.setMeasuredDimension(0, 0);
+                    } else {
+                        super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+                    }
+                }
+            };
+            fitLayout.addView(navigationView);
+        }
+        return this;
+    }
+
+    @Override
+    protected void onConfigurationChanged(Configuration newConfig) {
+        if (mNavigationView.isLandscape()) {
+            LayoutParams navigationParams = (LayoutParams) mNavigationView.getLayoutParams();
+            navigationParams.addRule(ALIGN_PARENT_RIGHT);
+
+            LayoutParams statusParams = (LayoutParams) mStatusView.getLayoutParams();
+            statusParams.addRule(ALIGN_PARENT_TOP);
+            statusParams.addRule(LEFT_OF, R.id.navigation_view);
+        } else {
+            LayoutParams statusParams = (LayoutParams) mStatusView.getLayoutParams();
+            statusParams.addRule(ALIGN_PARENT_TOP);
+
+            LayoutParams navigationParams = (LayoutParams) mNavigationView.getLayoutParams();
+            navigationParams.addRule(ALIGN_PARENT_BOTTOM);
+        }
+        layoutInvasion();
+    }
+
+    private void layoutInvasion() {
+        LayoutParams layoutParams = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
+        if (mNavigationView.isLandscape()) {
+            switch (mInvasionFlag) {
+                case FLAG_INVASION_STATUS:
+                    layoutParams.addRule(LEFT_OF, R.id.navigation_view);
+                    bringChildToFront(mStatusView);
+                    break;
+                case FLAG_INVASION_NAVIGATION:
+                    layoutParams.addRule(BELOW, R.id.status_view);
+                    layoutParams.addRule(LEFT_OF, R.id.navigation_view);
+                    bringChildToFront(mNavigationView);
+                    break;
+                case FLAG_INVASION_STATUS_AND_NAVIGATION:
+                    layoutParams.addRule(LEFT_OF, R.id.navigation_view);
+                    bringChildToFront(mStatusView);
+                    bringChildToFront(mNavigationView);
+                    break;
+                case FLAG_NOT_INVASION:
+                    layoutParams.addRule(BELOW, R.id.status_view);
+                    layoutParams.addRule(LEFT_OF, R.id.navigation_view);
+                    break;
+            }
+        } else {
+            switch (mInvasionFlag) {
+                case FLAG_INVASION_STATUS:
+                    layoutParams.addRule(RelativeLayout.ABOVE, R.id.navigation_view);
+                    bringChildToFront(mStatusView);
+                    break;
+                case FLAG_INVASION_NAVIGATION:
+                    layoutParams.addRule(RelativeLayout.BELOW, R.id.status_view);
+                    bringChildToFront(mNavigationView);
+                    break;
+                case FLAG_INVASION_STATUS_AND_NAVIGATION:
+                    bringChildToFront(mStatusView);
+                    bringChildToFront(mNavigationView);
+                    break;
+                case FLAG_NOT_INVASION:
+                    layoutParams.addRule(RelativeLayout.BELOW, R.id.status_view);
+                    layoutParams.addRule(RelativeLayout.ABOVE, R.id.navigation_view);
+                    break;
+            }
         }
         mContentLayout.setLayoutParams(layoutParams);
     }
